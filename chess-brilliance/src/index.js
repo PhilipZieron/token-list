@@ -24,6 +24,16 @@ export const DEFAULT_SETTINGS = {
   shallowMultiPv: 5,
   useShallow: false,
   prefilter: { minSacNet: 100, minSacGross: 250 },
+  /**
+   * A sacrifice that the opponent declines stays en prise, so every following
+   * ply looks like a fresh sacrifice of the same piece. With this on, only the
+   * move that *creates* an offer is reported; later plies where the same piece
+   * is still hanging on the same square are collapsed into it.
+   *
+   * Off by default because it is a judgement call, not a Chess.com rule:
+   * on the benchmark it removes 20 of 185 detections and costs 2 of 96 labels.
+   */
+  dedupeSacrifices: false,
 };
 
 /**
@@ -92,13 +102,33 @@ export async function analyseGame(pgn, engine, options = {}) {
     options.onProgress?.({ done, total: candidates.length, ply: c.ply });
   }
 
+  let brilliants = results.filter((r) => r.brilliant);
+  if (settings.dedupeSacrifices) brilliants = dedupeRepeatedOffers(brilliants);
+
   return {
     headers,
     nPlies: plies.length,
     nCandidates: candidates.length,
-    brilliants: results.filter((r) => r.brilliant),
+    brilliants,
     candidates: results,
   };
+}
+
+/**
+ * Collapses repeated reports of one standing sacrifice: the same player, the
+ * same piece value, still hanging on the same square. The earliest ply wins,
+ * because that is the move that actually created the offer.
+ */
+export function dedupeRepeatedOffers(brilliants) {
+  const seen = new Set();
+  const out = [];
+  for (const b of [...brilliants].sort((a, b2) => a.ply - b2.ply)) {
+    const key = `${b.color}|${b.features.hangingSquare}|${b.features.sacGross}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(b);
+  }
+  return out;
 }
 
 /** Convenience: how many positions the engine will actually have to look at. */

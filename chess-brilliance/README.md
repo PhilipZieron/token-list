@@ -80,6 +80,17 @@ That becomes explicit, tunable gates in [`src/core/classify.js`](src/core/classi
 | **G5 exclusions** | forced/only moves, positions already in check, promotions, king moves | freechess / Chess.com replica behaviour |
 | **G6 non-obvious** | a shallow search must not already pick the move | Zaidi & Guerzhoy, ICCC 2024 (**off by default — see findings**) |
 
+**Multiple Brilliants per game are reported** — `analyseGame` returns a list and
+nothing caps it at one. On the benchmark, 56 of 100 games get two or more
+detections (the benchmark itself only labels one per game, which is why the extra
+detections cannot be scored).
+
+One caveat worth knowing: a sacrifice the opponent *declines* stays en prise, so
+every following ply looks like a fresh offer of the same piece. One game in the
+benchmark reports nine detections that are really one standing sacrifice. Set
+`settings.dedupeSacrifices = true` to collapse those into the move that created
+the offer (on the benchmark: 185 → 165 detections, 96 → 94 labels).
+
 Four presets sit at different points of the recall/selectivity frontier —
 `recall`, `balanced` (default), `strict`, `top-move-only`:
 

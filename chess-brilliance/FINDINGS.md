@@ -46,7 +46,7 @@ its 700 cp rule is applied in cases where Chess.com evidently still awards the b
 
 Its `isPieceHanging` heuristic is nevertheless instructive: it counts attackers and
 defenders instead of running an exchange evaluation, which is *more* permissive than
-SEE in one specific way — see §7.
+SEE in one specific way — see §8.
 
 ## 3. Zaidi & Guerzhoy, *Predicting User Perception of Move Brilliance in Chess* (ICCC 2024, arXiv:2406.11895)
 
@@ -158,7 +158,33 @@ detection rate.
 Anyone who wants freechess-like selectivity can have it — `PRESETS['top-move-only']`
 reproduces that behaviour, and the whole frontier is in `RESULTS.md`.
 
-## 7. The one Brilliant a static exchange evaluation cannot see
+## 7. Standing sacrifices are reported once per ply
+
+Every ply is classified independently, which is right for games containing several
+Brilliants — 56 of the 100 benchmark games get two or more detections — but has one
+failure mode: a sacrifice the opponent **declines** remains en prise, so each
+following move is also "a move after which a piece is hanging".
+
+Benchmark game #85 (Blitzstream 2943 – MrTattaglia 3039) is the extreme case: nine
+consecutive detections, `12.f5 … 23.Bg5`, describing what is really one sustained
+piece sacrifice. Chess.com badges only the move that creates the offer.
+
+`settings.dedupeSacrifices` collapses repeats of the same player's same-valued piece
+on the same square into the earliest ply:
+
+| | detections | benchmark labels found | rate on external corpus |
+| --- | --- | --- | --- |
+| off (default) | 185 | 96/100 | 1.545 % |
+| on | 165 | 94/100 | 1.373 % |
+
+Keeping the *earliest* ply beats keeping the highest-scoring one (94 vs 93 labels),
+which is itself evidence that Chess.com's badge goes to the move that creates the
+offer rather than to the sharpest position along the way.
+
+It is off by default because it is a judgement call rather than a documented
+Chess.com rule, and because it costs two labels.
+
+## 8. The one Brilliant a static exchange evaluation cannot see
 
 Game #47, `23...Rf1+`: the rook lands on a square attacked by a rook and the king,
 and defended by a rook. SEE says the exchange is exactly **0** — no material is
@@ -170,7 +196,7 @@ attacker-count rule would recover this move, at the cost of also treating every
 ordinary defended-piece offer as a sacrifice, so the SEE definition is kept and this
 counts as an accepted miss.
 
-## 8. Engine choice
+## 9. Engine choice
 
 Stockfish **17.1 Lite**, single-threaded WASM (~7 MB), is used everywhere — including
 for the benchmark numbers — so that measured results transfer to the browser build
