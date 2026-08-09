@@ -5,7 +5,6 @@
  *   `analyse(fen, { depth, multiPv }) -> Promise<lines>`
  * so the same code drives the Node worker pool and the browser Web Worker.
  */
-import { Chess } from 'chess.js';
 import { replay } from './core/pgn.js';
 import { materialFeatures, isSacrificeCandidate } from './core/features.js';
 import { buildMoveFeatures } from './core/analysis.js';

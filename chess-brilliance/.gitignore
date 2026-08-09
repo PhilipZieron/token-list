@@ -2,3 +2,7 @@ node_modules/
 .scratch/
 cache/
 web/vendor/stockfish-*
+
+# dist/ is a shipped artefact (the no-build-step drop-in bundle), so it is
+# committed despite the repo-root .gitignore excluding every "dist".
+!dist/

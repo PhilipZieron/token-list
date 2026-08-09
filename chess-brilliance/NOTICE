@@ -1,0 +1,23 @@
+chess-brilliance
+================
+
+Copyright (C) 2025
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See LICENSE for the full text.
+
+Third-party components
+----------------------
+
+* Stockfish (https://github.com/official-stockfish/Stockfish) — GPL-3.0.
+  Used via the WASM build in https://github.com/nmrugg/stockfish.js.
+  This project is GPL-3.0 because it links against and distributes Stockfish.
+  Anyone shipping a browser build of this package distributes Stockfish to
+  every visitor and takes on the corresponding source-offer obligation.
+
+* chess.js (https://github.com/jhlywa/chess.js) — BSD-2-Clause.
+
+* The Brilliant-move rule in bench/baselines/freechess.js is a port of
+  https://github.com/WintrCat/freechess, included as a comparison baseline.

@@ -1,5 +1,4 @@
-import { createEngine, analyseFen } from '../src/engine/engine-browser.js';
-import { analyseGame, countCandidates, DEFAULT_SETTINGS } from '../src/index.js';
+import { createBrilliantAnalyser } from '../src/browser.js';
 import { Chess } from './vendor/chess.js';
 
 const els = {
@@ -12,7 +11,7 @@ const els = {
   engineInfo: document.getElementById('engine-info'),
 };
 
-let engine = null;
+let analyser = null;
 let enginePath = null;
 
 async function findEngine() {
@@ -33,13 +32,14 @@ async function findEngine() {
   );
 }
 
-async function ensureEngine() {
-  if (engine) return engine;
+async function ensureAnalyser() {
+  if (analyser) return analyser;
   setStatus('loading Stockfish 17.1 Lite (~7 MB) …');
   enginePath = await findEngine();
-  engine = await createEngine(enginePath);
+  analyser = createBrilliantAnalyser({ enginePath, params: 'production' });
+  await analyser.ready();
   els.engineInfo.textContent = `engine: ${enginePath.split('/').pop()} (single-threaded WASM)`;
-  return engine;
+  return analyser;
 }
 
 function setStatus(text) {
@@ -58,19 +58,15 @@ els.run.addEventListener('click', async () => {
   els.run.disabled = true;
   els.results.innerHTML = '';
   try {
-    const pre = countCandidates(pgn);
+    const an = await ensureAnalyser();
+    const pre = an.estimate(pgn);
     setStatus(`${pre.plies} plies, ${pre.candidates} sacrifice candidates need the engine`);
     setProgress(0, pre.candidates);
 
-    const eng = await ensureEngine();
     const depth = Number(els.depth.value);
-    const adapter = {
-      analyse: (fen, opts) => analyseFen(eng, fen, opts),
-    };
-
     const t0 = performance.now();
-    const report = await analyseGame(pgn, adapter, {
-      settings: { ...DEFAULT_SETTINGS, deepDepth: depth, afterDepth: depth - 1 },
+    const report = await an.analyse(pgn, {
+      settings: { deepDepth: depth, afterDepth: depth - 1 },
       onProgress: ({ done, total }) => {
         setProgress(done, total);
         setStatus(`analysing candidate ${done}/${total} …`);

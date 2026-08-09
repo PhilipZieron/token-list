@@ -112,6 +112,35 @@ const report = await analyseGame(pgn, engine, {
 
 ---
 
+## Using it in an application
+
+**→ [`INTEGRATION.md`](INTEGRATION.md)** is the guide: how to vendor the code,
+which two engine files to serve, the API, the performance budget and the GPL
+question. The short version:
+
+```js
+import { createBrilliantAnalyser } from 'chess-brilliance/browser';
+
+const analyser = createBrilliantAnalyser({
+  enginePath: '/engine/stockfish-17.1-lite-single-03e3232.js',
+  params: 'production',
+});
+const report = await analyser.analyse(pgn, { onProgress, signal });
+report.brilliants; // [{ ply, moveNumber, color, san, score, features }, …]
+```
+
+One analyser per app — it loads the 7 MB engine once and reuses it, queues
+concurrent calls, and supports `AbortSignal` cancellation.
+
+`dist/chess-brilliance.js` is a single 113 kB ESM file with `chess.js` inlined
+for setups without a bundler. TypeScript declarations are in `types/`.
+
+> **Licence:** Stockfish is GPL-3.0 and a browser build distributes it to every
+> visitor, so this package is GPL-3.0 too. Settle that before shipping — see
+> [`INTEGRATION.md`](INTEGRATION.md) §0.
+
+---
+
 ## Running it
 
 ```bash
@@ -134,6 +163,9 @@ node bench/external-rate.js      # calibration on unseen tournament games
 node bench/tune-joint.js         # recall vs. external-rate frontier
 node bench/timing.js             # single-engine speed
 node bench/report.js             # regenerates RESULTS.md
+
+# verify an integration (13 checks incl. a full engine round-trip)
+npm test
 ```
 
 For a static deployment, copy `stockfish-17.1-lite-single-*.js` and its `.wasm`

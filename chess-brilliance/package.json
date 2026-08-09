@@ -1,12 +1,14 @@
 {
   "name": "chess-brilliance",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Chess.com-style Brilliant (!!) move detection powered by Stockfish 17 Lite (WASM), runnable in the browser.",
-  "main": "src/index.js",
+  "main": "src/node.js",
   "scripts": {
     "bench:analyze": "node bench/run-engine.js",
     "bench:eval": "node bench/evaluate.js",
-    "serve": "node bench/serve.js"
+    "serve": "node bench/serve.js",
+    "build": "esbuild src/browser.js --bundle --format=esm --platform=browser --outfile=dist/chess-brilliance.js && esbuild src/browser.js --bundle --format=esm --platform=browser --minify --outfile=dist/chess-brilliance.min.js",
+    "test": "node bench/selftest.js"
   },
   "author": "",
   "license": "GPL-3.0",
@@ -14,5 +16,36 @@
     "chess.js": "^1.4.0",
     "stockfish": "^17.1.0"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./src/browser.js",
+      "node": "./src/node.js",
+      "default": "./src/browser.js"
+    },
+    "./browser": "./src/browser.js",
+    "./node": "./src/node.js",
+    "./bundle": "./dist/chess-brilliance.js",
+    "./core": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "types",
+    "LICENSE",
+    "README.md",
+    "INTEGRATION.md",
+    "RESULTS.md",
+    "FINDINGS.md",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  }
 }
