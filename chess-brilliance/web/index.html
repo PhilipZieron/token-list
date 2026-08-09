@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Brilliant Move Detector — Stockfish 17 Lite</title>
+    <style>
+      :root {
+        --bg: #14161a;
+        --panel: #1c1f26;
+        --line: #2b303b;
+        --text: #e6e8ec;
+        --muted: #9aa1ae;
+        --accent: #26c2a3;
+        --warn: #d8a657;
+        --light: #ebecd0;
+        --dark: #779556;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main { max-width: 940px; margin: 0 auto; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 170px;
+        background: #0f1115;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+        resize: vertical;
+      }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+      button {
+        background: var(--accent);
+        color: #06251f;
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 16px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      button.secondary { background: #333a47; color: var(--text); }
+      button:disabled { opacity: 0.5; cursor: default; }
+      label { color: var(--muted); font-size: 13px; }
+      select { background: #0f1115; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+      .progress { height: 18px; background: #0f1115; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); margin-top: 12px; }
+      #bar { height: 100%; width: 0; background: var(--accent); color: #06251f; font-size: 11px; text-align: center; line-height: 18px; transition: width .15s; }
+      #status { color: var(--muted); font-size: 13px; margin-top: 8px; min-height: 19px; }
+      #engine-info { color: var(--muted); font-size: 12px; margin-top: 4px; }
+      .game-head { font-weight: 650; margin-bottom: 10px; }
+      .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #171a20; }
+      .card.brilliant { border-color: var(--accent); }
+      .card.rejected { opacity: 0.75; }
+      .card-title { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+      .badge { background: var(--accent); color: #06251f; border-radius: 5px; padding: 1px 7px; font-weight: 800; }
+      .score, .reason { color: var(--muted); font-size: 12px; }
+      .facts { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+      .board { display: grid; grid-template-columns: repeat(8, 30px); margin-top: 10px; width: max-content; border: 1px solid var(--line); }
+      .sq { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 22px; line-height: 1; }
+      .sq.light { background: var(--light); }
+      .sq.dark { background: var(--dark); }
+      .sq.from { box-shadow: inset 0 0 0 2px #f0c000aa; }
+      .sq.to { box-shadow: inset 0 0 0 2px #f0c000; }
+      .sq { color: #111; text-shadow: 0 0 1px rgba(255,255,255,.6); }
+      details { margin-top: 14px; }
+      summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+      .empty { color: var(--muted); }
+      code { background: #0f1115; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Brilliant Move Detector</h1>
+      <p class="sub">
+        Chess.com-style <strong>!!</strong> detection running entirely in your browser on
+        Stockfish&nbsp;17.1&nbsp;Lite (single-threaded WASM — no COOP/COEP headers needed).
+        A material pre-filter means the engine only looks at the ~6&nbsp;% of moves that give material away.
+      </p>
+
+      <div class="panel">
+        <textarea id="pgn" placeholder="Paste a PGN here…"></textarea>
+        <div class="row">
+          <button id="run">Analyse</button>
+          <button id="sample" class="secondary">Load sample game</button>
+          <label for="depth">depth</label>
+          <select id="depth">
+            <option value="14">14 (fast)</option>
+            <option value="18">18</option>
+            <option value="20" selected>20 (benchmark setting)</option>
+            <option value="22">22 (slow)</option>
+          </select>
+        </div>
+        <div class="progress"><div id="bar"></div></div>
+        <div id="status"></div>
+        <div id="engine-info"></div>
+      </div>
+
+      <div class="panel" id="results-panel">
+        <div id="results"><p class="empty">Results appear here.</p></div>
+      </div>
+    </main>
+    <!-- `src/` is shared verbatim with the Node benchmark harness and imports
+         chess.js by name; the import map is what lets the browser resolve it. -->
+    <script type="importmap">
+      { "imports": { "chess.js": "./vendor/chess.js" } }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
