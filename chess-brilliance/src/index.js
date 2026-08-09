@@ -115,17 +115,26 @@ export async function analyseGame(pgn, engine, options = {}) {
 }
 
 /**
- * Collapses repeated reports of one standing sacrifice: the same player, the
- * same piece value, still hanging on the same square. The earliest ply wins,
- * because that is the move that actually created the offer.
+ * Collapses repeated reports of one *standing* sacrifice: the same player
+ * leaving the same piece hanging on the same square move after move. The
+ * earliest ply wins, because that is the move that created the offer.
+ *
+ * Only an unbroken run counts. Two separate sacrifices that happen to land on
+ * the same square later in the game are different sacrifices and both survive
+ * — the offer has to still be standing on the player's very next move
+ * (`ply + 2`) to be treated as a repeat.
  */
 export function dedupeRepeatedOffers(brilliants) {
-  const seen = new Set();
+  const lastPly = new Map();
   const out = [];
   for (const b of [...brilliants].sort((a, b2) => a.ply - b2.ply)) {
     const key = `${b.color}|${b.features.hangingSquare}|${b.features.sacGross}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const prev = lastPly.get(key);
+    if (prev !== undefined && b.ply - prev <= 2) {
+      lastPly.set(key, b.ply); // the run continues
+      continue;
+    }
+    lastPly.set(key, b.ply);
     out.push(b);
   }
   return out;

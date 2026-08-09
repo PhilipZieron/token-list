@@ -98,12 +98,16 @@ benchmark reports nine detections that are really one standing sacrifice. Set
 `settings.dedupeSacrifices = true` to collapse those into the move that created
 the offer (on the benchmark: 185 → 165 detections, 96 → 94 labels).
 
-Four presets sit at different points of the recall/selectivity frontier —
-`recall`, `balanced` (default), `strict`, `top-move-only`:
+Five presets sit at different points of the recall/selectivity frontier —
+`recall`, `balanced` (default), `production`, `strict`, `top-move-only`. For a
+user-facing tool use `production` together with `dedupeSacrifices`:
 
 ```js
 import { analyseGame, PRESETS } from './src/index.js';
-const report = await analyseGame(pgn, engine, { params: PRESETS.strict });
+const report = await analyseGame(pgn, engine, {
+  params: PRESETS.production,
+  settings: { dedupeSacrifices: true },
+});
 ```
 
 ---
@@ -159,6 +163,7 @@ bench/                  datasets, engine pool, tuning, evaluation, baselines
 | `data/chessigma-brilliant-benchmark.json` | 100 Chess.com games, one labelled Brilliant ply each | primary metric |
 | `data/twic-external.json` | 300 unseen TWIC tournament games, no labels | false-positive calibration against Chess.com's published 0.1–0.4 % Brilliant rate |
 | `data/twic-holdout.json` | a further 300 TWIC games, never used for tuning | confirms the external rate is stable |
+| `data/chesscom-verified.json` | one game whose Chess.com game review is known in full (three Brilliants) | the only dataset here where **precision** is measurable |
 | `data/annotated-brilliancies.json` | master games where a human annotator wrote `!!` | independent generalisation probe |
 
 See [`RESULTS.md`](RESULTS.md) for the numbers and [`FINDINGS.md`](FINDINGS.md)

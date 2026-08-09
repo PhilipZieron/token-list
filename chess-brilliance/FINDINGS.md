@@ -222,6 +222,31 @@ offer rather than to the sharpest position along the way.
 It is off by default because it is a judgement call rather than a documented
 Chess.com rule, and because it costs two labels.
 
+### First measurable precision: one fully labelled game
+
+`data/chesscom-verified.json` is a game whose Chess.com game review is known in
+full from screenshots — exactly three Brilliants: `16.Nxg6`, `21.Bxg6+`, `25.Rxg4`.
+It is the only dataset here where precision can be computed at all.
+
+| preset | found | missed | false positives | precision |
+| --- | --- | --- | --- | --- |
+| `balanced` (default) | 3/3 | 0 | `17…Kh7`, `24.Rg3` | 60 % |
+| `production` | 3/3 | 0 | `24.Rg3` | 75 % |
+
+`17…Kh7` is a king step that happens to leave a piece en prise with a 9.3 %
+expected-points loss — never a Chess.com Brilliant, and exactly what the
+`excludeKingMove` gate is for. That single data point is why `production` exists.
+
+`24.Rg3` is more interesting: engine rank 1, 8.8 pawns better than the second-best
+move, following a 70 % blunder by the opponent. The obvious hypothesis is that
+Chess.com classified it **Great Move (!)** rather than Brilliant, since the two are
+mutually exclusive. Tested against the same game, though, the hypothesis does not
+separate cleanly — `21.Bxg6+` also follows a blunder (26 %) with a 4.3 pawn gap and
+*did* get Brilliant. With one labelled game this cannot be settled; implementing
+Great and re-testing on more fully labelled games is the way to find out.
+
+n = 1 game. This is a data point, not a statistic.
+
 ## 8. The one Brilliant a static exchange evaluation cannot see
 
 Game #47, `23...Rf1+`: the rook lands on a square attacked by a rook and the king,

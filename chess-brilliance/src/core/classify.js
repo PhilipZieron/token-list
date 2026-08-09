@@ -116,6 +116,14 @@ export const PRESETS = {
   recall: { maxSecondCp: 1200, excludePromotion: false, minPlayedCp: -80 },
   /** Default. Best recall per detection on the benchmark. */
   balanced: {},
+  /**
+   * Recommended for a user-facing product: `balanced` plus the king-move
+   * exclusion. A king step that happens to leave a piece en prise is never what
+   * Chess.com badges; on the benchmark this costs 2 of 96 labels and removes 9
+   * detections, and on the one game with verified Chess.com labels it removes a
+   * false positive at no cost. Pair it with `settings.dedupeSacrifices = true`.
+   */
+  production: { excludeKingMove: true },
   /** Fewer, more clear-cut brilliancies. */
   strict: { maxSecondCp: 550, minPlayedCp: 0, excludeKingMove: true },
   /** Only the engine's top move counts, like the freechess replica. */
