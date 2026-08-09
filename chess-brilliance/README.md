@@ -80,6 +80,13 @@ That becomes explicit, tunable gates in [`src/core/classify.js`](src/core/classi
 | **G5 exclusions** | forced/only moves, positions already in check, promotions, king moves | freechess / Chess.com replica behaviour |
 | **G6 non-obvious** | a shallow search must not already pick the move | Zaidi & Guerzhoy, ICCC 2024 (**off by default — see findings**) |
 
+**Only moves that were actually played are classified.** The pipeline replays the
+PGN and asks, for each half-move in the game, "was *this* move a sound sacrifice?".
+It never searches for a brilliant move that was merely *available*, and never
+reports a move that was not played — the engine's own top moves are used only as
+context. On the external corpus, 116 of 386 detections were not the engine's first
+choice; they were reported because a human chose them.
+
 **Multiple Brilliants per game are reported** — `analyseGame` returns a list and
 nothing caps it at one. On the benchmark, 56 of 100 games get two or more
 detections (the benchmark itself only labels one per game, which is why the extra

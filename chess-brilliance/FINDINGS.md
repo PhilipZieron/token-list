@@ -147,16 +147,54 @@ Two independent calibrations were used instead:
 The two external corpora agree to within 0.1 percentage points, so the rate is a
 stable property of the classifier and not an artefact of one sample.
 
-Chess.com's published player statistics put Brilliant at ~0.1–0.4 % of moves. Both
-systems sit above that, and the gap is expected rather than alarming: that figure
-counts badges earned by mostly-amateur members who usually *fail* to find the
-sound sacrifice, whereas these corpora are 2400+ tournament games in which the
-strong move actually gets played. freechess-on-the-same-corpus is therefore the
-meaningful yardstick: this project detects 2.2× more true Brilliants for 3.5× the
-detection rate.
+Chess.com's published player statistics put Brilliant at ~0.1–0.4 % of moves.
+Both systems sit above that. Part of the gap is a population effect — that figure
+counts badges earned by mostly-amateur members who usually *fail* to find the sound
+sacrifice, whereas these corpora are tournament games where the strong move gets
+played. The detection rate does rise with playing strength, as that story predicts:
 
-Anyone who wants freechess-like selectivity can have it — `PRESETS['top-move-only']`
-reproduces that behaviour, and the whole frontier is in `RESULTS.md`.
+| Elo of the player to move | plies | detections | rate |
+| --- | --- | --- | --- |
+| < 2200 | 9 440 | 99 | 1.049 % |
+| 2200–2399 | 7 761 | 123 | 1.585 % |
+| 2400–2499 | 3 743 | 89 | 2.378 % |
+| 2500–2599 | 3 120 | 57 | 1.827 % |
+| ≥ 2600 | 764 | 18 | 2.358 % |
+
+But the trend does not close the gap: even the weakest band is ~3× Chess.com's
+published figure, and those are still rated tournament players rather than the
+1000–1200 club that dominates Chess.com's statistics. **The honest reading is that
+this classifier is genuinely less selective than Chess.com's**, and the population
+effect only explains part of it. How much of the remainder is real over-firing
+versus true Brilliants the benchmark never labelled cannot be settled without
+complete Chess.com labels, which are not public.
+
+freechess-on-the-same-corpus is therefore the yardstick that is actually
+apples-to-apples: this project detects 2.2× more true Brilliants for 3.5× the
+detection rate. Anyone who wants Chess.com-like selectivity should use the
+`top-move-only` preset and accept ~58/100 recall.
+
+The whole frontier is in `RESULTS.md`.
+
+### Only played moves are ever classified
+
+Worth stating explicitly, because it is what makes the rate comparison valid at all:
+the pipeline replays the PGN and asks, for each **half-move that was actually
+played**, "was *this* move a sacrifice, and was it sound?". It never asks "is a
+brilliant move available in this position?" and never reports a move that was not
+in the game. The engine's own top moves are used only as context — best move,
+second best, expected-points loss.
+
+That the two are different is visible in the data: 116 of the 386 detections on the
+external corpus were *not* the engine's first choice. They were reported because a
+human played them.
+
+| engine rank of the reported (played) move | 1 | 2 | 3 | 4 | 5 | > 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| detections | 270 | 62 | 26 | 11 | 5 | 12 |
+
+So both this system and Chess.com's badge count the same kind of event — a move a
+player chose — and the rates above are measuring comparable quantities.
 
 ## 7. Standing sacrifices are reported once per ply
 
