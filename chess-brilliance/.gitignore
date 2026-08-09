@@ -1,0 +1,4 @@
+node_modules/
+.scratch/
+cache/
+web/vendor/stockfish-*

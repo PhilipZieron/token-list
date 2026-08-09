@@ -1,0 +1,127 @@
+# Brilliant Move Detector — Stockfish 17 Lite in the browser
+
+Chess.com-style **Brilliant (!!)** move detection that runs entirely client-side on
+**Stockfish 17.1 Lite** (single-threaded NNUE WASM, ~7 MB), scored against the
+[Chessigma 100-move Brilliant benchmark](https://www.chessigma.com/benchmarks/brilliant).
+
+| system | recall on the 100-move benchmark |
+| --- | --- |
+| **this project** | **see `RESULTS.md`** |
+| Chessigma (reference, self-reported) | 93 / 100 |
+| [freechess](https://github.com/WintrCat/freechess) rule, re-implemented here on identical engine output | 44 / 100 |
+
+Everything — engine, pre-filter, classifier — runs in the browser with no server
+and no cross-origin isolation (COOP/COEP) required.
+
+---
+
+## How it works
+
+```
+PGN ──► replay ──► static material pre-filter ──► Stockfish 17.1 Lite ──► rule-based classifier ──► !!
+                   (engine-free, ~5 % of plies)     (MultiPV, depth 20)      (6 auditable gates)
+```
+
+### 1. Static sacrifice pre-filter (no engine)
+
+A move can only be Brilliant if the player gives material away, and that is
+decidable statically. For each ply we compute, with a proper
+[static exchange evaluation](src/core/board.js) (negamax-with-stand-pat over the
+capture sequence, so x-rays and batteries are handled):
+
+* `seeOfMove` — the exchange value of the played move itself
+* `hangingGain` — the largest material the opponent can now win by force
+* `sacGross` — the value of the piece offered ("you sacrificed a rook")
+* `sacNet` — net material handed over after counting what the move captured
+
+Only moves with `sacGross ≥ 250` and `sacNet ≥ 100` reach the engine.
+
+On the benchmark that keeps **99 of the 100 labelled Brilliant moves while
+discarding ~93 % of all plies** — which is what makes full-game analysis
+practical in a browser tab.
+
+### 2. Engine stage
+
+For each surviving candidate, Stockfish 17.1 Lite runs
+
+* MultiPV 5 @ depth 20 on the position **before** the move → best move, second
+  best, and the played move's own line
+* MultiPV 2 @ depth 19 on the position **after** the move → evaluation of the
+  move actually played
+* (optional) MultiPV 5 @ depth 8 → the "weak engine" reference used for the
+  non-obviousness signal
+
+All evaluations are converted to the side-to-move's perspective and then into
+**expected points** with the same logistic Chess.com uses:
+
+```
+win% = 100 / (1 + exp(-0.00368208 · centipawns))
+```
+
+### 3. Classifier — six auditable gates
+
+Chess.com describes a Brilliant as *"a good sacrifice that is not obvious."*
+That becomes explicit, tunable gates in [`src/core/classify.js`](src/core/classify.js):
+
+| gate | rule | source |
+| --- | --- | --- |
+| **G1 sacrifice** | `sacGross ≥ 300` (minor piece or more) and `sacNet ≥ 100` | Chess.com: "a good piece sacrifice"; no pawn-only sacrifice appears among the 100 labelled moves |
+| **G2 quality** | expected-points loss ≤ `maxEpLoss` | Chess.com's own expected-points model |
+| **G3 soundness** | evaluation after the move ≥ `minPlayedCp` | "the evaluation must remain favourable" |
+| **G4 necessity** | second-best move must not already be winning (`< 700 cp`) | Chess.com's "not winning anyway" rule; the 700 cp constant is the one used by freechess |
+| **G5 exclusions** | forced/only moves, positions already in check, promotions, king moves | freechess / Chess.com replica behaviour |
+| **G6 non-obvious** | a shallow search must not already pick the move | Zaidi & Guerzhoy, ICCC 2024 (**off by default — see findings**) |
+
+---
+
+## Running it
+
+```bash
+npm install
+
+# browser demo
+npm run serve            # http://localhost:8080/
+
+# command line
+node bin/analyse.js game.pgn --depth 20
+cat game.pgn | node bin/analyse.js
+
+# benchmark reproduction (engine results are cached in cache/analysis.jsonl)
+npm run bench:analyze    # engine pass  (~10 min on 4 cores, cached afterwards)
+npm run bench:eval       # recall / extra-detection report
+node bench/tune.js       # threshold search + 2-fold cross-validation
+node bench/ablate.js     # what each gate costs and saves
+node bench/compare-baseline.js   # vs. the freechess (Chess.com replica) rule
+node bench/external-rate.js      # calibration on unseen tournament games
+```
+
+For a static deployment, copy `stockfish-17.1-lite-single-*.js` and its `.wasm`
+sibling from `node_modules/stockfish/src/` into `web/vendor/` — then `web/` is a
+self-contained static site.
+
+## Layout
+
+```
+src/core/board.js       SEE, attackers/defenders, material
+src/core/features.js    static sacrifice features + pre-filter
+src/core/analysis.js    engine output -> feature vector
+src/core/classify.js    the Brilliant gates (the actual "algorithm")
+src/core/pgn.js         tolerant PGN reader (chess.com clock comments etc.)
+src/engine/uci.js       UCI parsing, MultiPV collection, win-probability model
+src/engine/engine-node.js     Stockfish 17.1 Lite in Node
+src/engine/engine-browser.js  the same build as a Web Worker
+src/index.js            analyseGame() — the public API
+web/                    browser demo
+bench/                  datasets, engine pool, tuning, evaluation, baselines
+```
+
+## Data
+
+| dataset | what it is | role |
+| --- | --- | --- |
+| `data/chessigma-brilliant-benchmark.json` | 100 Chess.com games, one labelled Brilliant ply each | primary metric |
+| `data/twic-external.json` | 300 unseen TWIC tournament games, no labels | false-positive calibration against Chess.com's published 0.1–0.4 % Brilliant rate |
+| `data/annotated-brilliancies.json` | master games where a human annotator wrote `!!` | independent generalisation probe |
+
+See [`RESULTS.md`](RESULTS.md) for the numbers and [`FINDINGS.md`](FINDINGS.md)
+for what the research said and which parts of it survived contact with the data.
