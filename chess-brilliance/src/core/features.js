@@ -62,7 +62,24 @@ export function materialFeatures(fenBefore, fenAfter, move) {
 
   const sacNet = Math.max(-seeOfMove, hangingGain - capturedValue, 0);
 
+  // Was material already hanging *before* the move? If the opponent could
+  // already win the same amount, the move did not create the offer — that is
+  // usually a loose piece being ignored, not a sacrifice.
+  const preGains = opponentCaptureGains(fenBefore, opp);
+  const boardBefore = new Chess();
+  boardBefore.load(fenBefore, { skipValidation: true });
+  let preSacGross = 0;
+  for (const g of preGains) {
+    if (g.gain <= 0) continue;
+    const victim = boardBefore.get(g.to);
+    const v = victim ? SAC_VALUE[victim.type] : 0;
+    if (v > preSacGross) preSacGross = v;
+  }
+  const preHangingGain = Math.max(0, preGains[0]?.gain ?? 0);
+
   return {
+    preSacGross,
+    preHangingGain,
     seeOfMove,
     capturedValue,
     hangingGain,

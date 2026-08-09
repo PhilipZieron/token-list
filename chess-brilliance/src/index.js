@@ -11,7 +11,7 @@ import { materialFeatures, isSacrificeCandidate } from './core/features.js';
 import { buildMoveFeatures } from './core/analysis.js';
 import { classifyBrilliant, DEFAULT_PARAMS } from './core/classify.js';
 
-export { classifyBrilliant, DEFAULT_PARAMS } from './core/classify.js';
+export { classifyBrilliant, DEFAULT_PARAMS, PRESETS, GATES } from './core/classify.js';
 export { replay, parsePgn } from './core/pgn.js';
 export { materialFeatures, isSacrificeCandidate } from './core/features.js';
 

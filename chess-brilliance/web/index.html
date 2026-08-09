@@ -90,7 +90,7 @@
       <p class="sub">
         Chess.com-style <strong>!!</strong> detection running entirely in your browser on
         Stockfish&nbsp;17.1&nbsp;Lite (single-threaded WASM — no COOP/COEP headers needed).
-        A material pre-filter means the engine only looks at the ~5&nbsp;% of moves that give material away.
+        A material pre-filter means the engine only looks at the ~6&nbsp;% of moves that give material away.
       </p>
 
       <div class="panel">
@@ -115,6 +115,11 @@
         <div id="results"><p class="empty">Results appear here.</p></div>
       </div>
     </main>
+    <!-- `src/` is shared verbatim with the Node benchmark harness and imports
+         chess.js by name; the import map is what lets the browser resolve it. -->
+    <script type="importmap">
+      { "imports": { "chess.js": "./vendor/chess.js" } }
+    </script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

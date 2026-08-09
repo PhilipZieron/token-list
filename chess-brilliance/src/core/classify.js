@@ -28,8 +28,9 @@ export const DEFAULT_PARAMS = {
   maxEpLoss: 0.09,
   maxCpLossAbsolute: 400,
 
-  // G3 – soundness after the move.
-  minPlayedCp: -80,
+  // G3 – soundness after the move. Chess.com: "the evaluation must remain
+  // favourable". A small negative tolerance absorbs Lite's evaluation noise.
+  minPlayedCp: -40,
 
   // G4 – the sacrifice has to be worth something: if a quiet alternative was
   // already completely winning, Chess.com does not award Brilliant.
@@ -37,13 +38,18 @@ export const DEFAULT_PARAMS = {
   secondRuleOnlyWhenBestIsCp: true,
   excludeBothMate: false,
 
-  // G5 – structural exclusions.
-  excludePromotion: false,
-  excludeInCheck: false,
+  // G5 – structural exclusions. Both mirror Chess.com replica behaviour and
+  // pay for themselves: together they cost 1 of the 100 benchmark labels and
+  // remove ~15 % of the detections.
+  excludePromotion: true,
+  excludeInCheck: true,
   excludeForced: true,
   excludeRecapture: false,
   excludeKingMove: false,
   maxRank: 0, // 0 = off; otherwise the move must be in the engine's top N
+  // The move must *create* the offer: material that was already hanging before
+  // the move is a loose piece being ignored, not a sacrifice.
+  requireNewSacrifice: false,
 
   // G6 – non-obviousness.
   requireShallowDisagreement: false,
@@ -63,6 +69,10 @@ export const GATES = [
   ['forced', (f, p) => p.excludeForced && f.nLegalBefore <= 1],
   ['recapture', (f, p) => p.excludeRecapture && f.isRecapture],
   ['king-move', (f, p) => p.excludeKingMove && f.movedPiece === 'k'],
+  [
+    'already-hanging',
+    (f, p) => p.requireNewSacrifice && (f.preSacGross ?? 0) >= f.sacGross,
+  ],
   ['rank-too-low', (f, p) => p.maxRank > 0 && (f.playedRank === 0 || f.playedRank > p.maxRank)],
   [
     'not-really-sacrificed',
@@ -96,6 +106,28 @@ export const GATES = [
       p.requireShallowDisagreement && f.shallowRank !== null && f.shallowRank <= p.minShallowRank,
   ],
 ];
+
+/**
+ * Named operating points along the recall / selectivity frontier.
+ * Numbers are from `bench/report.js`; see RESULTS.md.
+ */
+export const PRESETS = {
+  /** Highest recall. Also accepts sacrifices in already-winning positions. */
+  recall: { maxSecondCp: 1200, excludePromotion: false, minPlayedCp: -80 },
+  /** Default. Best recall per detection on the benchmark. */
+  balanced: {},
+  /** Fewer, more clear-cut brilliancies. */
+  strict: { maxSecondCp: 550, minPlayedCp: 0, excludeKingMove: true },
+  /** Only the engine's top move counts, like the freechess replica. */
+  'top-move-only': {
+    maxRank: 1,
+    maxEpLoss: 0,
+    minPlayedCp: 0,
+    maxSecondCp: 700,
+    excludeBothMate: true,
+    excludeKingMove: true,
+  },
+};
 
 export function classifyBrilliant(f, params) {
   const p = { ...DEFAULT_PARAMS, ...(params || {}) };

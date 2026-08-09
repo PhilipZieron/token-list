@@ -14,20 +14,31 @@ import { collectMultiPv } from './uci.js';
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function findLiteSingle() {
+const FLAVORS = {
+  // The browser build – everything reported in RESULTS.md uses this one.
+  'lite-single': /^stockfish-17\.1-lite-single-[0-9a-f]+\.js$/,
+  // Full-strength NNUE, single threaded. ~79 MB of split wasm: only used to
+  // check how much of the classifier's slack is caused by Lite being weaker.
+  single: /^stockfish-17\.1-single-[0-9a-f]+\.js$/,
+};
+
+export function findBuild(flavor = 'lite-single') {
   const srcDir = path.join(__dirname, '../../node_modules/stockfish/src');
-  const js = fs
+  const js = fs.readdirSync(srcDir).find((f) => FLAVORS[flavor].test(f));
+  if (!js) throw new Error(`stockfish 17.1 ${flavor} build not found`);
+  const base = js.replace(/\.js$/, '');
+  const parts = fs
     .readdirSync(srcDir)
-    .find((f) => /^stockfish-17\.1-lite-single-[0-9a-f]+\.js$/.test(f));
-  if (!js) throw new Error('stockfish 17.1 lite-single build not found');
-  return {
-    js: path.join(srcDir, js),
-    wasm: path.join(srcDir, js.replace(/\.js$/, '.wasm')),
-  };
+    .filter((f) => f.startsWith(`${base}-part-`) && f.endsWith('.wasm'))
+    .sort()
+    .map((f) => path.join(srcDir, f));
+  return { js: path.join(srcDir, js), wasm: path.join(srcDir, `${base}.wasm`), parts };
 }
 
+export const findLiteSingle = () => findBuild('lite-single');
+
 export async function createEngine(options = {}) {
-  const { js, wasm } = findLiteSingle();
+  const { js, wasm, parts } = findBuild(options.flavor || 'lite-single');
   const INIT_ENGINE = require(js);
 
   const listeners = [];
@@ -37,6 +48,9 @@ export async function createEngine(options = {}) {
       for (const l of listeners) l(line);
     },
   };
+
+  // The large builds ship their wasm split into parts that must be reassembled.
+  if (parts.length) module.wasmBinary = Buffer.concat(parts.map((p) => fs.readFileSync(p)));
 
   const factory = typeof INIT_ENGINE === 'function' ? INIT_ENGINE() : INIT_ENGINE;
   await factory(module);

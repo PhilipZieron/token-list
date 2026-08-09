@@ -6,12 +6,20 @@ Chess.com-style **Brilliant (!!)** move detection that runs entirely client-side
 
 | system | recall on the 100-move benchmark |
 | --- | --- |
-| **this project** | **see `RESULTS.md`** |
+| **this project — default preset** | **96 / 100** |
+| **this project — `recall` preset** | **98 / 100** |
 | Chessigma (reference, self-reported) | 93 / 100 |
 | [freechess](https://github.com/WintrCat/freechess) rule, re-implemented here on identical engine output | 44 / 100 |
 
+Held-out check: tuning the thresholds on half the benchmark games and scoring the
+other half gives **95/100**, so the numbers are not an artefact of fitting the
+benchmark. Full detail, including detection rates on 600 unseen tournament games,
+is in [`RESULTS.md`](RESULTS.md).
+
 Everything — engine, pre-filter, classifier — runs in the browser with no server
-and no cross-origin isolation (COOP/COEP) required.
+and no cross-origin isolation (COOP/COEP) required: a 69-ply game is analysed in
+about 5 seconds, because only the ~6 % of moves that give material away ever
+reach the engine.
 
 ---
 
@@ -19,7 +27,7 @@ and no cross-origin isolation (COOP/COEP) required.
 
 ```
 PGN ──► replay ──► static material pre-filter ──► Stockfish 17.1 Lite ──► rule-based classifier ──► !!
-                   (engine-free, ~5 % of plies)     (MultiPV, depth 20)      (6 auditable gates)
+                   (engine-free, ~6 % of plies)     (MultiPV, depth 20)      (auditable gates)
 ```
 
 ### 1. Static sacrifice pre-filter (no engine)
@@ -37,7 +45,7 @@ capture sequence, so x-rays and batteries are handled):
 Only moves with `sacGross ≥ 250` and `sacNet ≥ 100` reach the engine.
 
 On the benchmark that keeps **99 of the 100 labelled Brilliant moves while
-discarding ~93 % of all plies** — which is what makes full-game analysis
+discarding 93 % of all plies** — which is what makes full-game analysis
 practical in a browser tab.
 
 ### 2. Engine stage
@@ -72,6 +80,14 @@ That becomes explicit, tunable gates in [`src/core/classify.js`](src/core/classi
 | **G5 exclusions** | forced/only moves, positions already in check, promotions, king moves | freechess / Chess.com replica behaviour |
 | **G6 non-obvious** | a shallow search must not already pick the move | Zaidi & Guerzhoy, ICCC 2024 (**off by default — see findings**) |
 
+Four presets sit at different points of the recall/selectivity frontier —
+`recall`, `balanced` (default), `strict`, `top-move-only`:
+
+```js
+import { analyseGame, PRESETS } from './src/index.js';
+const report = await analyseGame(pgn, engine, { params: PRESETS.strict });
+```
+
 ---
 
 ## Running it
@@ -93,6 +109,9 @@ node bench/tune.js       # threshold search + 2-fold cross-validation
 node bench/ablate.js     # what each gate costs and saves
 node bench/compare-baseline.js   # vs. the freechess (Chess.com replica) rule
 node bench/external-rate.js      # calibration on unseen tournament games
+node bench/tune-joint.js         # recall vs. external-rate frontier
+node bench/timing.js             # single-engine speed
+node bench/report.js             # regenerates RESULTS.md
 ```
 
 For a static deployment, copy `stockfish-17.1-lite-single-*.js` and its `.wasm`
@@ -121,6 +140,7 @@ bench/                  datasets, engine pool, tuning, evaluation, baselines
 | --- | --- | --- |
 | `data/chessigma-brilliant-benchmark.json` | 100 Chess.com games, one labelled Brilliant ply each | primary metric |
 | `data/twic-external.json` | 300 unseen TWIC tournament games, no labels | false-positive calibration against Chess.com's published 0.1–0.4 % Brilliant rate |
+| `data/twic-holdout.json` | a further 300 TWIC games, never used for tuning | confirms the external rate is stable |
 | `data/annotated-brilliancies.json` | master games where a human annotator wrote `!!` | independent generalisation probe |
 
 See [`RESULTS.md`](RESULTS.md) for the numbers and [`FINDINGS.md`](FINDINGS.md)

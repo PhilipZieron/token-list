@@ -38,7 +38,14 @@ export function buildMoveFeatures({
   // Evaluation of the move actually played, mover-relative.
   const matching = deepLines?.find((l) => l.move === uci);
   const afterTop = afterLines?.[0];
-  const playedCpFromAfter = afterTop ? -afterTop.cp : null;
+  let playedCpFromAfter = afterTop ? -afterTop.cp : null;
+  if (playedCpFromAfter === null) {
+    // No lines for the position after the move => the game ended there.
+    const terminal = new Chess();
+    terminal.load(fenAfter, { skipValidation: true });
+    if (terminal.isCheckmate()) playedCpFromAfter = MATE_SCORE;
+    else if (terminal.isStalemate() || terminal.isInsufficientMaterial()) playedCpFromAfter = 0;
+  }
   const playedCp = matching ? matching.cp : playedCpFromAfter;
 
   const isBestMove = best?.move === uci;

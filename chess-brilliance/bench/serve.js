@@ -24,9 +24,17 @@ const TYPES = {
 
 http
   .createServer((req, res) => {
-    let rel = decodeURIComponent(req.url.split('?')[0]);
-    if (rel === '/') rel = '/web/index.html';
-    const file = path.join(root, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
+    const rel = decodeURIComponent(req.url.split('?')[0]);
+    // Redirect rather than rewrite, so the page's relative imports resolve
+    // against /web/ instead of the server root.
+    if (rel === '/') {
+      res.writeHead(302, { Location: '/web/' });
+      return res.end();
+    }
+    let file = path.join(root, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
+    if (file.startsWith(root) && fs.existsSync(file) && fs.statSync(file).isDirectory()) {
+      file = path.join(file, 'index.html');
+    }
     if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);
       return res.end('not found');
